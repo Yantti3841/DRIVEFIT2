@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e0f0f">
+  <meta name="description" content="DRIVEFIT 宝马试驾前选车助手。通过简单选择，看懂推荐依据，把试驾需求复制到微信。">
+  <title>DRIVEFIT · 试驾前，先选对宝马</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="scene.css">
+  <link rel="stylesheet" href="drivefit.css">
+  <link rel="preload" href="assets/scene-2.jpg" as="image">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="#home" aria-label="DRIVEFIT 首页">DRIVEFIT<span class="brand-dot" aria-hidden="true"></span></a>
+    <nav aria-label="主导航">
+      <a href="#quiz" data-nav="quiz">为你选车</a>
+      <a href="#explore" data-nav="explore">车型展厅</a>
+      <button class="nav-link" data-action="about">怎么推荐</button>
+    </nav>
+    <a class="header-cta" href="#quiz">开始选车</a>
+  </header>
+  <main id="app"></main>
+  <footer class="footer"><span>DRIVEFIT · 宝马试驾前选车</span><button data-action="about">独立参赛原型 · 推荐依据与数据来源</button></footer>
+  <div id="compare-bar" class="compare-bar" hidden></div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript>请启用 JavaScript 以使用选车功能。</noscript>
+</body>
+</html>
