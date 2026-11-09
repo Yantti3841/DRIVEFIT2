@@ -2,16 +2,24 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
+  <script>document.documentElement.dataset.motion=new URLSearchParams(location.search).get('motion')==='on'?'on':'system';</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0e0f0f">
-  <meta name="description" content="DRIVEFIT 宝马试驾前选车助手。通过简单选择，看懂推荐依据，把试驾需求复制到微信。">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="DRIVEFIT 宝马试驾前选车助手 通过简单选择，看懂推荐依据，把试驾需求复制到微信">
   <title>DRIVEFIT · 试驾前，先选对宝马</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="scene.css">
   <link rel="stylesheet" href="drivefit.css">
+  <link rel="stylesheet" href="experience.css?v=20261108-cinema">
+  <link rel="stylesheet" href="configurator.css?v=20261108-config">
+  <link rel="stylesheet" href="unified.css?v=20261108-blue-final">
   <link rel="preload" href="assets/scene-2.jpg" as="image">
-  <script type="module" src="app.js"></script>
+  <script defer src="vendor/gsap/gsap.min.js"></script>
+  <script defer src="vendor/gsap/ScrollTrigger.min.js"></script>
+  <script defer src="vendor/gsap/Flip.min.js"></script>
+  <script type="module" src="app.js?v=20261108-blue-final"></script>
+  <link rel="stylesheet" href="brand.css?v=20261108-gallery-smooth">
 </head>
 <body>
   <header class="header">
@@ -21,13 +29,12 @@
       <a href="#explore" data-nav="explore">车型展厅</a>
       <button class="nav-link" data-action="about">怎么推荐</button>
     </nav>
-    <a class="header-cta" href="#quiz">开始选车</a>
   </header>
   <main id="app"></main>
   <footer class="footer"><span>DRIVEFIT · 宝马试驾前选车</span><button data-action="about">独立参赛原型 · 推荐依据与数据来源</button></footer>
   <div id="compare-bar" class="compare-bar" hidden></div>
   <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <noscript>请启用 JavaScript 以使用选车功能。</noscript>
+  <noscript>请启用 JavaScript 以使用选车功能</noscript>
 </body>
 </html>
