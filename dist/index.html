@@ -2,7 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <script>document.documentElement.dataset.motion=new URLSearchParams(location.search).get('motion')==='on'?'on':'system';</script>
+  <script>
+    const motionOverride=new URLSearchParams(location.search).get('motion')==='on';
+    let savedMotion=false;
+    try{savedMotion=localStorage.getItem('drivefit-motion')==='on';}catch{}
+    document.documentElement.dataset.motion=motionOverride||savedMotion?'on':'system';
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="DRIVEFIT 宝马试驾前选车助手 通过简单选择，看懂推荐依据，把试驾需求复制到微信">

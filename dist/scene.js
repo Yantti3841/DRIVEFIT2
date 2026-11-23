@@ -1,5 +1,5 @@
 import {slides} from './slides.js';
-import {mountMotion,slideTransition,animateModelName,motionAllowed} from './motion.js';
+import {mountMotion,slideTransition,animateModelName,motionAllowed,motionControl} from './motion.js';
 let cleanup=()=>{},hasOpened=false;
 const titleChars=text=>`<i aria-label="${text}">${[...text].map((char,index)=>`<span class="title-char" aria-hidden="true" style="--char-delay:${index*65}ms">${char}</span>`).join('')}</i>`;
 const reduced=()=>!motionAllowed();
@@ -14,7 +14,7 @@ export function home(){
   <button class="skip-intro" data-scene="skip">跳过开场</button>
   <div class="home-message"><h1><span class="line">${titleChars('试驾前')}</span><span class="line">${titleChars('先选对宝马')}</span></h1><p class="home-description">几个简单选择，找到值得试驾的 <span class="keep-together">2—3 台</span></p><div class="home-actions"><a class="btn start-button" href="#quiz"><span class="button-label">开始选车</span><span class="button-time">约 1 分钟</span></a><a class="home-secondary" href="#showroom">三维看车</a></div></div>
   <div class="hero-model" aria-hidden="true"><span data-model-code>${slides[0].code}</span></div>
-  <div class="home-foot"><a class="photo-caption" data-photo-source href="${slides[0].source}" target="_blank" rel="noopener noreferrer"><span data-photo-name>${slides[0].name}</span><span class="image-credit">BMW 官方图片</span></a><div class="hero-playback">${photoControls()}</div><button class="scroll-cue" data-scroll="drive-story">往下探索<span class="scroll-mark" aria-hidden="true"></span></button></div>
+  <div class="home-foot"><a class="photo-caption" data-photo-source href="${slides[0].source}" target="_blank" rel="noopener noreferrer"><span data-photo-name>${slides[0].name}</span><span class="image-credit">BMW 官方图片</span></a><div class="hero-playback">${photoControls()}${motionControl()}</div><button class="scroll-cue" data-scroll="drive-story">往下探索<span class="scroll-mark" aria-hidden="true"></span></button></div>
  </section>
  <section class="drive-story" id="drive-story" aria-labelledby="story-title">
   <div class="story-heading"><h2 id="story-title" data-reveal>选车<br>从你的生活开始</h2></div>
@@ -64,7 +64,7 @@ export function mountScene(view,app){
  }
  if(view==='home'){
   const scene=app.querySelector('.drive-home');
-  const opening=!hasOpened&&!reduced();hasOpened=true;
+  const opening=!hasOpened&&!reduced();if(opening)hasOpened=true;
   scene.classList.add(opening?'opening':'ready');
   const stopIntro=()=>{scene.classList.remove('opening');scene.classList.add('ready');};
   scene.querySelector('.home-intro').addEventListener('animationend',e=>{if(e.target===e.currentTarget)stopIntro();},{signal:events.signal});

@@ -2,6 +2,12 @@
  * Layout continuity: Codrops/ScrollBasedLayoutAnimations; gallery movement:
  * Codrops/3DCarousel. See vendor/credits and research/reference-source. */
 export const motionAllowed=()=>document.documentElement.dataset.motion==='on'||!matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function motionControl(){
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches)return '';
+ const enabled=motionAllowed();
+ return `<button class="motion-control" data-action="toggle-motion">${enabled?'跟随系统':'开启动效'}</button>`;
+}
+
 let photoTween;
 
 export function slideTransition(photos,previous,next){
@@ -68,7 +74,7 @@ export function mountMotion(view,app,signal){
   }else if(view==='quiz'){
    g.timeline({defaults:{ease:'power3.out'}})
     .fromTo('.config-panel h1,.config-panel .quiz-hint',{y:12,opacity:0},{y:0,opacity:1,duration:.4,stagger:.045,clearProps:'opacity,transform'},0)
-    .fromTo('.option',{y:12,opacity:0},{y:0,opacity:1,duration:.38,stagger:.025,clearProps:'opacity,transform'},.07);
+    .fromTo('.option,.personal-field',{y:12,opacity:0},{y:0,opacity:1,duration:.38,stagger:.025,clearProps:'opacity,transform'},.07);
   }else if(view==='explore'){
    g.fromTo('.explore-grid>a',{y:55,opacity:0},{y:0,opacity:1,duration:.95,stagger:.12,ease:'power3.out',clearProps:'opacity,transform'});
   }

@@ -2,7 +2,7 @@ import {catalog} from './catalog.js';
 import {home,explore,showroom,mountScene,disposeScene} from './scene.js';
 import {defaultNeeds,recommend,priceLabel,energyLabels,bodyLabels,useLabels,priorityLabels,tradeoff,testDriveChecks,personalScenarios} from './recommend.js';
 import {testDriveMessage} from './share.js';
-import {captureGrid,animateGrid} from './motion.js';
+import {captureGrid,animateGrid,motionAllowed} from './motion.js';
 import {renderQuiz,updateQuizPreview,showQuizCar} from './quiz-view.js';
 
 const app=document.querySelector('#app');
@@ -173,6 +173,16 @@ document.addEventListener('click',e=>{
  if(b.dataset.priority){needs.priorities=[b.dataset.priority,...needs.priorities.filter(x=>x!==b.dataset.priority)].slice(0,2);answers.priorities=needs.priorities;app.innerHTML=resultsPage();updateCompare();toast(`已优先考虑${priorityLabels[b.dataset.priority]}`);return;}
  if(b.dataset.status){filters.status=b.dataset.status==='new'?'new':b.dataset.status;app.innerHTML=catalogPage();updateCompare();return;}
  const action=b.dataset.action;
+ if(action==='toggle-motion'){
+  const enable=!motionAllowed();
+  const url=new URL(location.href);
+  url.searchParams.delete('motion');
+  history.replaceState(history.state,'',url);
+  document.documentElement.dataset.motion=enable?'on':'system';
+  try{if(enable)localStorage.setItem('drivefit-motion','on');else localStorage.removeItem('drivefit-motion');}catch{}
+  render();
+  app.querySelector('[data-action="toggle-motion"]')?.focus({preventScroll:true});
+ }
  if(action==='about')about();
  if(action==='close')dialog.close();
  if(action==='previous'){if(step>0){step--;refreshQuiz();app.querySelector('h1')?.focus({preventScroll:true});}else navigate('home');}
