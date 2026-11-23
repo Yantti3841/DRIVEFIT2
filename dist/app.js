@@ -1,6 +1,6 @@
 import {catalog} from './catalog.js';
 import {home,explore,showroom,mountScene,disposeScene} from './scene.js';
-import {defaultNeeds,recommend,priceLabel,energyLabels,bodyLabels,useLabels,priorityLabels,tradeoff,testDriveChecks} from './recommend.js';
+import {defaultNeeds,recommend,priceLabel,energyLabels,bodyLabels,useLabels,priorityLabels,tradeoff,testDriveChecks,personalScenarios} from './recommend.js';
 import {testDriveMessage} from './share.js';
 import {captureGrid,animateGrid} from './motion.js';
 import {renderQuiz,updateQuizPreview,showQuizCar} from './quiz-view.js';
@@ -26,8 +26,15 @@ const baseQuestions=[
 ];
 const chargingQuestion={key:'charging',short:'充电条件',title:'平时充电方便吗？',hint:'不方便也可以考虑电车，但要先确认补能安排',options:[opt('home','家里方便','有固定车位与充电条件'),opt('work','公司方便','工作地点能稳定补能'),opt('public','主要公共充电','需要规划时间和地点'),opt('unknown','还不确定','留到试驾前再核对')]};
 const bodyQuestion={key:'body',short:'车身偏好',title:'你更偏爱哪种车身？',hint:'凭你的第一感觉选；这是偏好，不会直接排除其他车身',options:[opt('sedan','轿车','日常、商务、家庭'),opt('suv','SUV','坐姿与空间的取舍'),opt('coupe','双门轿跑','车身姿态与运动取向'),opt('convertible','敞篷','享受开放式驾驶'),opt('any','都可以 / 不确定','给我不同的候选')]};
-const questions=()=>[...baseQuestions,answers.energy==='gasoline'?bodyQuestion:chargingQuestion];
-const answersComplete=()=>questions().every(q=>q.multi?answers[q.key]?.length:answers[q.key]!==undefined);
+const personalQuestion={
+ key:'personal',short:'个性需求',title:'有什么想在试驾时特别确认？',
+ hint:'选填 · 最多选两项，会加入试驾清单。具体装备请向顾问确认',
+ multi:true,optional:true,
+ options:Object.entries(personalScenarios).map(([id,s])=>opt(id,s.label,s.description,s.symbol))
+};
+const questions=()=>[...baseQuestions,answers.energy==='gasoline'?bodyQuestion:chargingQuestion,personalQuestion];
+const missingAnswer=q=>!q.optional&&(q.multi?!answers[q.key]?.length:answers[q.key]===undefined);
+const answersComplete=()=>!questions().some(missingAnswer);
 const getCar=id=>catalog.find(c=>c.id===id);
 
 function navigate(target){if(location.hash===`#${target}`)render();else location.hash=target;}
@@ -37,7 +44,7 @@ function render(){
  document.body.classList.toggle('canvas-page',['home','explore','showroom'].includes(view));
  document.body.dataset.view=view;
  if(dialog.open)dialog.close();
- if(view==='results'){const missing=questions().findIndex(q=>q.multi?!answers[q.key]?.length:answers[q.key]===undefined);if(missing!==-1){step=missing;navigate('quiz');return;}syncNeeds();}
+ if(view==='results'){const missing=questions().findIndex(missingAnswer);if(missing!==-1){step=missing;navigate('quiz');return;}syncNeeds();}
  document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===view));
  app.innerHTML=view==='home'?home():view==='explore'?explore():view==='showroom'?showroom():view==='quiz'?quiz():view==='catalog'?catalogPage():resultsPage();
  mountScene(view,app);
@@ -62,7 +69,7 @@ function refreshQuiz(){
 function gotoStep(i){const qs=questions();if(!Number.isInteger(i)||i<0||i>=qs.length)return;if(i!==step){step=i;refreshQuiz();window.scrollTo(0,0);}app.querySelector('h1')?.focus({preventScroll:true});}
 function answer(id){
  const q=questions()[step];
- if(q.multi){let a=answers[q.key]||[];if(a.includes(id))a=a.filter(x=>x!==id);else if(id==='unknown')a=['unknown'];else{a=a.filter(x=>x!=='unknown');if(a.length===2){toast('最多选两项，先取消一项再选择');return;}a=[...a,id];}answers[q.key]=a;app.querySelectorAll('[data-answer]').forEach(b=>b.setAttribute('aria-pressed',String(a.includes(b.dataset.answer))));app.querySelector('[data-action="next"]').disabled=!a.length;updateQuizPreview(app,answers,questions());return;}
+ if(q.multi){let a=answers[q.key]||[];if(a.includes(id))a=a.filter(x=>x!==id);else if(id==='unknown')a=['unknown'];else{a=a.filter(x=>x!=='unknown');if(a.length===2){toast('最多选两项，先取消一项再选择');return;}a=[...a,id];}answers[q.key]=a;app.querySelectorAll('[data-answer]').forEach(b=>b.setAttribute('aria-pressed',String(a.includes(b.dataset.answer))));const next=app.querySelector('[data-action="next"]');next.disabled=!q.optional&&!a.length;if(q.optional)next.textContent=(a.length||answers.personalNote?.trim())?'查看推荐':'跳过，查看推荐';updateQuizPreview(app,answers,questions());return;}
  if(q.key==='energy'&&answers.energy!==id){delete answers.body;delete answers.charging;}
  if(q.key==='budget')delete answers.budgetLabel;
  if(q.key==='energy')needs.energyMust=false;
@@ -72,12 +79,12 @@ function answer(id){
 function advance(){
  const qs=questions();
  if(step<qs.length-1){step++;refreshQuiz();app.querySelector('h1')?.focus({preventScroll:true});window.scrollTo(0,0);return;}
- const missing=qs.filter(q=>q.multi?!answers[q.key]?.length:answers[q.key]===undefined);
+ const missing=qs.filter(missingAnswer);
  if(missing.length){const first=qs.findIndex(q=>missing.includes(q));gotoStep(first);toast(`还有 ${missing.length} 个问题没答，先回到第 ${first+1} 题`);return;}
  syncNeeds();navigate('results');}
 function syncNeeds(){
  const budget=answers.budget==='null'?null:Number(answers.budget);
- needs={...needs,budget:Number.isFinite(budget)&&budget>0?budget:null,budgetLabel:answers.budgetLabel||budgetOptions.find(o=>o.id===String(answers.budget))?.title||'还没确定',uses:(answers.uses||[]).filter(x=>x!=='unknown'),passengers:Number(answers.passengers)||2,priorities:(answers.priorities||[]).filter(x=>x!=='unknown'),energy:answers.energy||'any',body:answers.body||'any',charging:answers.charging||'unknown'};
+ needs={...needs,budget:Number.isFinite(budget)&&budget>0?budget:null,budgetLabel:answers.budgetLabel||budgetOptions.find(o=>o.id===String(answers.budget))?.title||'还没确定',uses:(answers.uses||[]).filter(x=>x!=='unknown'),passengers:Number(answers.passengers)||2,priorities:(answers.priorities||[]).filter(x=>x!=='unknown'),personal:answers.personal||[],personalNote:(answers.personalNote||'').trim(),energy:answers.energy||'any',body:answers.body||'any',charging:answers.charging||'unknown'};
 }
 function carCard(c,rank=null){
  const isPick=rank!==null;const isSelected=selected.has(c.id);const status=c.status==='on_sale'?'':c.status==='consult'?'咨询 / 预售':'待发布 / 关注';
@@ -99,10 +106,10 @@ function updateCatalog(){
  document.querySelector('#catalog-grid').innerHTML=rows.length?rows.map(c=>carCard(c)).join(''):emptyCatalog();
  animateGrid(motionState);
 }
-function needsChips(){return [needs.budget?`预算上限 ${(needs.budget/10000).toFixed(1)} 万`:'预算未确定',...needs.uses.map(x=>useLabels[x]),`${needs.passengers} 人出行`,...needs.priorities.map(x=>priorityLabels[x]),needs.energy==='any'?'动力不限':energyLabels[needs.energy]+(needs.energyMust?'（必须）':'优先'),needs.body!=='any'?bodyLabels[needs.body]+(needs.bodyMust?'（必须）':'优先'):null].filter(Boolean);}
+function needsChips(){return [needs.budget?`预算上限 ${(needs.budget/10000).toFixed(1)} 万`:'预算未确定',...needs.uses.map(x=>useLabels[x]),`${needs.passengers} 人出行`,...needs.priorities.map(x=>priorityLabels[x]),...needs.personal.map(x=>personalScenarios[x].label),needs.energy==='any'?'动力不限':energyLabels[needs.energy]+(needs.energyMust?'（必须）':'优先'),needs.body!=='any'?bodyLabels[needs.body]+(needs.bodyMust?'（必须）':'优先'):null].filter(Boolean);}
 function resultsPage(){
  const {picks,total}=recommend(catalog,needs);
- return `<section class="page"><div class="page-heading"><div><h1>${picks.length?'值得试驾的候选':'调整选车条件'}</h1><p>${picks.length?'根据您的预算与用车需求筛选':'我们会保留你的条件，不自动提高预算'}</p></div><button class="btn secondary small" data-action="edit">调整我的需求 </button></div><div class="need-chips">${needsChips().map(t=>`<span>${esc(t)}</span>`).join('')}</div><div class="result-note">${needs.budget?'已按官方价格排除明显超预算车型；落地费用另计，具体版本仍需核价':'预算尚未确认，当前只按需求排序，未验证价格是否适合你'} ${needs.passengers>=6?'三排车型的座位与版本价格，请到店核对':''}</div>${picks.length?`<div class="car-grid">${picks.map((c,i)=>carCard(c,i)).join('')}</div><div class="result-tools"><button class="btn secondary small" data-priority="space">更看重空间</button><button class="btn secondary small" data-priority="drive">更看重驾驶</button><button class="btn secondary small" data-priority="comfort">更看重舒适</button><button class="text-btn" data-action="copy-summary">复制我的需求 </button></div><div class="comparison-tip"><span>从 ${total} 个满足必要条件的车型中，为你选出不同车系的候选</span><button class="text-btn" data-action="about">为什么这样推荐？ </button></div>`:`<div class="empty"><h2>暂无符合条件的车型</h2><p>${noResultReason()}</p><button class="btn" data-action="edit">调整购车条件 </button><a class="btn secondary" href="#catalog">所有车型</a></div>`}<p class="data-note">推荐标签是团队基于车型定位的初步判断，不是实测排名 价格与车型图来自宝马官网（2026.10.12）；配置、年款、座位和库存以意向版本为准 当前为车系层面的试驾候选推荐</p></section>`;
+ return `<section class="page"><div class="page-heading"><div><h1>${picks.length?'值得试驾的候选':'调整选车条件'}</h1><p>${picks.length?'根据您的预算与用车需求筛选':'我们会保留你的条件，不自动提高预算'}</p></div><button class="btn secondary small" data-action="edit">调整我的需求 </button></div><div class="need-chips">${needsChips().map(t=>`<span>${esc(t)}</span>`).join('')}<button class="text-btn" data-action="edit-personal">${(needs.personal.length||needs.personalNote)?'修改个性需求':'补充个性需求'}</button></div>${needs.personalNote?`<p class="result-note personal-note"><strong>其他个性需求：</strong>${esc(needs.personalNote)}</p>`:''}<div class="result-note">${needs.budget?'已按官方价格排除明显超预算车型；落地费用另计，具体版本仍需核价':'预算尚未确认，当前只按需求排序，未验证价格是否适合你'} ${needs.passengers>=6?'三排车型的座位与版本价格，请到店核对':''}</div>${picks.length?`<div class="car-grid">${picks.map((c,i)=>carCard(c,i)).join('')}</div><div class="result-tools"><button class="btn secondary small" data-priority="space">更看重空间</button><button class="btn secondary small" data-priority="drive">更看重驾驶</button><button class="btn secondary small" data-priority="comfort">更看重舒适</button><button class="text-btn" data-action="copy-summary">复制我的需求 </button></div><div class="comparison-tip"><span>从 ${total} 个满足必要条件的车型中，为你选出不同车系的候选</span><button class="text-btn" data-action="about">为什么这样推荐？ </button></div>`:`<div class="empty"><h2>暂无符合条件的车型</h2><p>${noResultReason()}</p><button class="btn" data-action="edit">调整购车条件 </button><a class="btn secondary" href="#catalog">所有车型</a></div>`}<p class="data-note">推荐标签是团队基于车型定位的初步判断，不是实测排名 价格与车型图来自宝马官网（2026.10.12）；配置、年款、座位和库存以意向版本为准 当前为车系层面的试驾候选推荐</p></section>`;
 }
 function noResultReason(){
  if(needs.budget!==null&&needs.budget<208000)return '当前官网在售车型最低展示起价为 20.80 万元 你的预算上限低于该价格；我们不会把未经核实的折扣作为推荐依据';
@@ -117,7 +124,7 @@ function updateCompare(){
 function showDialog(title,content){lastFocus=document.activeElement;dialog.innerHTML=`<div class="dialog-head"><h2 id="dialog-title">${title}</h2><button class="close" data-action="close" aria-label="关闭">${icon('close')}</button></div><div class="dialog-content">${content}</div>`;dialog.showModal();dialog.scrollTop=0;}
 function detail(id){
  const c=getCar(id),r=recommend(catalog,needs).picks.find(x=>x.id===id);const checks=testDriveChecks(c,needs);
- showDialog(c.name,`<div class="detail-top"><div class="car-art"><img src="${c.image}" alt="${esc(c.name)} 官方图片"></div><div><div class="car-price">${priceLabel(c)}</div><p>${energyLabels[c.energy]} · ${bodyLabels[c.body]} · ${c.seats} 座${/X7/.test(c.name)?'（意向版本需核对）':''}</p><p>${c.status==='on_sale'?(r?r.reasons.join(' '):'先认识车型，再通过需求问答判断是否值得试驾'):'官网提供咨询或关注入口；上市、交付与试驾安排请向经销商确认'}</p><a class="source" href="${c.source}" target="_blank" rel="noopener noreferrer">查看宝马官方车型资料</a></div></div><div class="data-note">需要权衡：${r?.tradeoff||tradeoff(c,needs)}</div><h3>试驾时重点确认</h3><p>勾选已确认的事项，保存后可把需求直接复制给微信里的销售</p><ol class="check-list">${checks.map((x,i)=>`<li><label><input type="checkbox" data-check="${i}" aria-label="已确认：${x.title}"><span><strong>${x.title}</strong><p>${x.text}</p></span></label></li>`).join('')}</ol><div class="dialog-actions"><button class="btn small" data-download="${id}">保存试驾清单</button><button class="btn secondary small" data-compare="${id}">${selected.has(id)?'已加入':'加入对比'}</button></div><section class="wechat-share" hidden><div class="share-heading"><div><span class="eyebrow">READY TO SEND</span><h3>把需求带到微信</h3></div><span class="share-state">已生成</span></div><p>可以修改文字，再复制给销售 由你自行发送</p><label class="fine" for="wechat-message">试驾需求文字</label><textarea id="wechat-message" rows="9"></textarea><button class="btn small" data-copy-plan="${id}">复制到微信</button><span class="copy-status" role="status"></span></section><p class="local-label">官网价格快照：${c.checkedAt} · 图片可能含选装配置 · 无真实预约</p>`);
+ showDialog(c.name,`<div class="detail-top"><div class="car-art"><img src="${c.image}" alt="${esc(c.name)} 官方图片"></div><div><div class="car-price">${priceLabel(c)}</div><p>${energyLabels[c.energy]} · ${bodyLabels[c.body]} · ${c.seats} 座${/X7/.test(c.name)?'（意向版本需核对）':''}</p><p>${c.status==='on_sale'?(r?r.reasons.join(' '):'先认识车型，再通过需求问答判断是否值得试驾'):'官网提供咨询或关注入口；上市、交付与试驾安排请向经销商确认'}</p><a class="source" href="${c.source}" target="_blank" rel="noopener noreferrer">查看宝马官方车型资料</a></div></div><div class="data-note">需要权衡：${r?.tradeoff||tradeoff(c,needs)}</div><h3>试驾时重点确认</h3><p>勾选已确认的事项，保存后可把需求直接复制给微信里的销售</p><ol class="check-list">${checks.map((x,i)=>`<li><label><input type="checkbox" data-check="${i}" aria-label="已确认：${x.title}"><span><strong>${x.title}</strong><p>${esc(x.text)}</p></span></label></li>`).join('')}</ol><div class="dialog-actions"><button class="btn small" data-download="${id}">保存试驾清单</button><button class="btn secondary small" data-compare="${id}">${selected.has(id)?'已加入':'加入对比'}</button></div><section class="wechat-share" hidden><div class="share-heading"><div><span class="eyebrow">READY TO SEND</span><h3>把需求带到微信</h3></div><span class="share-state">已生成</span></div><p>可以修改文字，再复制给销售 由你自行发送</p><label class="fine" for="wechat-message">试驾需求文字</label><textarea id="wechat-message" rows="9"></textarea><button class="btn small" data-copy-plan="${id}">复制到微信</button><span class="copy-status" role="status"></span></section><p class="local-label">官网价格快照：${c.checkedAt} · 图片可能含选装配置 · 无真实预约</p>`);
 }
 function compare(){
  const cars=[...selected].map(getCar);const ranked=recommend(catalog,needs).picks;
@@ -134,7 +141,7 @@ function about(){
  showDialog('为什么推荐这几台',`<section class="evidence-intro"><span class="eyebrow">THE REASON BEHIND YOUR DRIVE</span><h3>${complete?`为你保留 ${audit.picks.length} 台试驾候选`:'先筛条件 再选合适的车'}</h3><p>${complete?'下面是这次推荐真实经过的筛选和计分 条件不变，结果可以复核':'先满足必要条件，再按你的偏好排序 完成问答后，这里会展示你的实际筛选过程与每台车的得分'}</p></section><ol class="filter-funnel">${stages.map((s,i)=>`<li><span class="funnel-step">0${i+1} / ${s.label}</span><strong>${s.count}<small> 款</small></strong><div class="funnel-track"><span style="width:${s.count/catalog.length*100}%"></span></div><p>${esc(s.note)}</p></li>`).join('')}${complete?`<li class="funnel-final"><span class="funnel-step">06 / 不同车系候选</span><strong>${audit.picks.length}<small> 台</small></strong><p>按偏好排序，同车系只保留一台，最多三台</p></li>`:'<li class="funnel-pending"><span class="funnel-step">接下来 / 按你的需求</span><strong>由你决定</strong><p>预算、人数、必要条件，然后保留不同车系的候选</p><a class="source" href="#quiz" data-dismiss>开始回答问题</a></li>'}</ol><details class="scoring-details"><summary>查看计分依据与排序规则</summary><div class="evidence-section-title"><h3>${complete?'每一分的依据':'查看排序规则'}</h3><span>规则匹配分 · 非测评分 / 匹配概率</span></div><div class="weight-legend"><span>第一偏好 <b>+5</b></span><span>第二偏好 <b>+3</b></span><span>每个用车场景 <b>+2</b></span><span>动力 / 车身偏好各 <b>+1</b></span><span>补能待确认 <b>−2</b></span></div>${complete&&audit.picks.length?`<div class="score-candidates">${audit.picks.map((c,i)=>`<article class="score-card"><div class="score-car"><img src="${c.image}" alt="${esc(c.name)} 官方图片"><div><span class="fine">${i===0?'优先试驾':`候选 ${i+1}`}</span><h4>${esc(c.name)}</h4></div><div class="score-total"><strong>${c.score}</strong><span>排序分</span></div></div><ul class="score-ledger">${c.scoreParts.length?c.scoreParts.map(s=>`<li><div class="score-label"><span>${esc(s.label)}</span><b>${s.points>0?'+':''}${s.points}</b></div><div class="score-track ${s.points<0?'penalty':''}"><span style="width:${Math.abs(s.points)/s.max*100}%"></span></div><small>${s.source}${s.points===0?' · 未命中标签':''}</small></li>`).join(''):'<li class="fine">尚未设定排序偏好 通过必要条件后，按官网展示价升序排列</li>'}</ul><a class="source" href="${c.source}" target="_blank" rel="noopener noreferrer">${priceLabel(c)} · 核对官方车型资料</a></article>`).join('')}</div>`:complete?'<div class="evidence-empty">当前条件筛选后为 0 台 我们保留你的预算与必要条件，等待你主动调整</div>':''}<p class="evidence-rule-note">只有命中标签才加分 公共充电或充电条件不明时，纯电 / 插混减 2 分；仍保留必须符合的动力 总分相同，按官方展示价升序，再按目录 ID 排序</p></details><section class="source-split"><div><span class="source-dot official"></span><h4>可查的车型资料</h4><p>官方展示价、动力与车身类型来自 BMW 车型目录 座位按车型资料整理，具体版本仍需核对</p><a class="source" href="https://www.bmw.com.cn/zh/ssl/model-finder.html" target="_blank" rel="noopener noreferrer">BMW 中国官方目录 · 2026.10.12 快照</a></div><div><span class="source-dot editorial"></span><h4>需要亲自试的判断</h4><p>驾驶、舒适、空间及场景标签由团队根据车型定位整理，暂无实测评级 推荐用于缩小试驾范围</p><span class="fine">价格能核对，主观感受留给你</span></div></section><details class="evidence-details"><summary>图片、三维模型与原型说明</summary><p>44 个条目有官方价格与试驾入口，5 个为咨询或关注条目，后者不参与推荐 车型图与轮播照片来自 BMW 中国官网，轮播照片于 2026.10.13 核对 图片可能含选装配置，不代表起价版本</p><p>BMW M4 外观示意模型由 SRT Performance 制作，以 CC BY 4.0 发布；本站优化了体积并提供颜色预览，不代表具体年款或官方车漆</p><a class="source" href="assets/models/CREDITS.txt" target="_blank" rel="noopener noreferrer">模型署名与许可</a><p>DRIVEFIT 为独立参赛原型，与宝马官方无合作或授权关系 采用可解释规则，未接入大模型或实时库存 需求仅在当前页面内使用，无登录或手机号收集 官网价不是成交价，不能保证当地现车</p></details>`);
  dialog.querySelector('.evidence-details').insertAdjacentHTML('beforeend','<p>动效适配参考 Codrops 的 SlideshowAnimations、ScrollBasedLayoutAnimations 与 3DCarousel；使用本地 GSAP 3.13.0、ScrollTrigger 和 Flip</p><a class="source" href="vendor/gsap/CREDITS.md" target="_blank" rel="noopener noreferrer">动效来源与许可</a>');
 }
-function summary(){return `DRIVEFIT · 我的宝马试驾前需求\n${needsChips().join(' / ')}\n${needs.charging==='home'?'家庭充电方便':needs.charging==='work'?'公司充电方便':needs.charging==='public'?'主要公共充电':'充电条件待确认'}\n候选：${recommend(catalog,needs).picks.map(c=>c.name).join('、')||'暂无满足条件的候选'}\n价格为官方裸车价快照，整体购车费用及具体版本需另核对`;}
+function summary(){return `DRIVEFIT · 我的宝马试驾前需求\n${needsChips().join(' / ')}\n${needs.personalNote?`其他个性需求：${needs.personalNote}\n`:''}${needs.charging==='home'?'家庭充电方便':needs.charging==='work'?'公司充电方便':needs.charging==='public'?'主要公共充电':'充电条件待确认'}\n候选：${recommend(catalog,needs).picks.map(c=>c.name).join('、')||'暂无满足条件的候选'}\n价格为官方裸车价快照，整体购车费用及具体版本需另核对`;}
 function download(text,name){const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function copySummary(){try{await navigator.clipboard.writeText(summary());toast('需求摘要已复制');}catch{showDialog('复制我的需求',`<p>浏览器未允许自动复制 请选中文字手动复制</p><textarea id="summary-message" class="manual-copy" rows="8" aria-label="购车需求摘要">${esc(summary())}</textarea>`);dialog.querySelector('textarea').select();}}
 function savePlan(id){
@@ -171,13 +178,19 @@ document.addEventListener('click',e=>{
  if(action==='previous'){if(step>0){step--;refreshQuiz();app.querySelector('h1')?.focus({preventScroll:true});}else navigate('home');}
  if(action==='next')advance();
  if(action==='edit')edit();
+ if(action==='edit-personal'){step=questions().length-1;navigate('quiz');}
  if(action==='redo'){dialog.close();step=0;answers={};needs=defaultNeeds();selected.clear();navigate('quiz');toast('已清空选择，从预算重新开始');}
  if(action==='copy-summary')copySummary();
  if(action==='compare')compare();
  if(action==='clear-compare'){selected.clear();updateCompare();}
  if(action==='reset-filters'){filters={search:'',energy:'all',body:'all',budget:'all',status:'on_sale',sort:'default'};app.innerHTML=catalogPage();updateCompare();}
 });
-document.addEventListener('input',e=>{if(e.target.matches('[data-filter="search"]')){filters.search=e.target.value.trim();updateCatalog();}});
+document.addEventListener('input',e=>{
+ if(e.target.id==='personal-note'){
+  answers.personalNote=e.target.value.slice(0,120);
+  app.querySelector('[data-action="next"]').textContent=answers.personal?.length||answers.personalNote.trim()?'查看推荐':'跳过，查看推荐';
+ }
+ if(e.target.matches('[data-filter="search"]')){filters.search=e.target.value.trim();updateCatalog();}});
 document.addEventListener('change',e=>{if(e.target.matches('select[data-filter]')){filters[e.target.dataset.filter]=e.target.value;updateCatalog();}});
 document.addEventListener('submit',e=>{
  if(e.target.id==='custom-budget'){e.preventDefault();const value=Number(new FormData(e.target).get('budget'));if(value<=0||!Number.isFinite(value))return;answers.budget=String(Math.round(value*10000));answers.budgetLabel=`${value} 万元以内`;advance();}

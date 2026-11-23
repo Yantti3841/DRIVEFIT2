@@ -2,7 +2,14 @@ export const energyLabels={gasoline:'燃油',bev:'纯电',phev:'插电混动'};
 export const bodyLabels={sedan:'轿车',suv:'SUV',coupe:'双门轿跑',convertible:'敞篷',wagon:'旅行车'};
 export const useLabels={commute:'日常通勤',family:'接送家人',long:'长途出行',weekend:'周末出游'};
 export const priorityLabels={drive:'驾驶感受',comfort:'乘坐舒适',space:'空间实用',cost:'使用成本',design:'外观设计'};
-export const defaultNeeds=()=>({budget:null,budgetLabel:'还没确定',uses:[],passengers:2,priorities:[],energy:'any',energyMust:false,body:'any',bodyMust:false,charging:'unknown'});
+export const personalScenarios={
+ roof:{label:'长途旅行 · 车顶行李箱',description:'想把行李放到车顶，给车内留空间',symbol:'road',title:'核对车顶行李箱安装条件',text:'请顾问确认意向年款能否安装兼容的横杆和车顶箱、是否需要另购，以及车顶载荷与装好后的限高'},
+ pets:{label:'带宠物出门',description:'经常带宠物笼或航空箱',symbol:'people',title:'试放宠物笼或航空箱',text:'带上笼子的尺寸，请顾问确认后备厢开口、固定点和装载高度'},
+ bikes:{label:'周末带自行车',description:'骑行装备要和人一起出门',symbol:'mountain',title:'确认自行车怎么带',text:'量一下折叠座椅后的空间，看看自行车是否要拆前轮；若计划外挂，请顾问确认兼容支架'},
+ kids:{label:'带娃出门 · 安全座椅',description:'要装儿童座椅，也常带婴儿车',symbol:'seat',title:'试装儿童座椅，试放婴儿车',text:'带上常用座椅和婴儿车，请顾问核对固定接口位置、安装空间和后备厢装载'}
+};
+
+export const defaultNeeds=()=>({budget:null,budgetLabel:'还没确定',uses:[],passengers:2,priorities:[],personal:[],personalNote:'',energy:'any',energyMust:false,body:'any',bodyMust:false,charging:'unknown'});
 export const priceLabel=c=>c.price?`${(c.price/10000).toFixed(2)} 万元${c.priceIsFrom?'起':''}`:'售价待公布';
 export function recommend(catalog,needs){
  const stages=[{label:'官网目录',count:catalog.length,note:'包含咨询与待发布条目'}];
@@ -51,5 +58,7 @@ export function testDriveChecks(c,n){
  if(['bev','phev'].includes(c.energy)&&!['public','unknown'].includes(n.charging))checks.push({title:'确认你的补能方式',text:'核对家或公司充电条件，询问常用路线补能；体验低速与能量回收感受'});
  checks.push({title:'试一次停车与低速转弯',text:'核对视野、停车空间，确认辅助功能是否属于意向版本'});
  checks.push({title:'核对具体版本与落地费用',text:'确认年款、座位、标配与选装，取得书面报价；官网起价不是成交价'});
- return checks.slice(0,3);
+ const personal=(n.personal||[]).map(id=>personalScenarios[id]).filter(Boolean);
+ if(n.personalNote?.trim())personal.push({title:'核对其他个性需求',text:n.personalNote.trim()});
+ return [...personal,...checks.slice(0,3)];
 }
